@@ -140,9 +140,19 @@ class MySolver {
   int NonMinimalSolver(const std::vector<int>& sample,
                        Model* model) const;
 
+  // To evaluate a given model on the data points, one of EvaluateModelOnPoint()
+  // or EvaluateModelOnAllPoints() should be provided. Using EvaluateModelOnAllPoints()
+  // is more efficient and takes precedence if both methods are present.
+  // An example of using EvaluateModelOnAllPoints is provided in class LineEstimator()
+  // in examples/line_estimator.cc.
+  
   // Evaluates a given model on the i-th data point and returns the squared 
   // error of that correspondence wrt. the model.
   double EvaluateModelOnPoint(const Model& model, int i) const;
+
+  // Evaluates a given model on all data points and fills vector sqerrors with
+  // the squared errors of each correspondence wrt. the model.
+  void EvaluateModelOnAllPoints(const Model& model, std::vector<double>& sqerrors) const;
 
   // Performs least squares refinement of a given input Model model. On return,
   // model contains the refined model. sample contains the indices of the data
@@ -261,3 +271,4 @@ When contributing, please adhere to [Google's C++ Style Guide](https://google.gi
 ## List of Projects using RansacLib
 * Active Search v1.1 uses RansacLib instead of its original RANSAC implementation. Code for Active Search will become available [here](https://github.com/tsattler/vps).
 * [radialpose](https://github.com/vlarsson/radialpose) is an implementation of minimal solvers for absolute camera pose estimation for images with radial distortion.
+* [SQPnP](https://github.com/terzakig/sqpnp/tree/master/examples/robust) is a fast, non-minimal PnP solver.

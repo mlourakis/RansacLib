@@ -113,4 +113,14 @@ double LineEstimator::EvaluateModelOnPoint(const Eigen::Vector3d& line,
   return residual * residual;
 }
 
+// Evaluates the line on all data points.
+void LineEstimator::EvaluateModelOnAllPoints(const Eigen::Vector3d& line,
+                                             std::vector<double>& squared_errors) const {
+//#pragma omp parallel for if(num_data_ > 200) shared(line, squared_errors) default(none) num_threads(4)
+  for (int i = 0; i < num_data_; ++i) {
+    double residual = line.dot(data_.col(i).homogeneous());
+    squared_errors.emplace_back(residual * residual);
+  }
+}
+
 }  // namespace ransac_lib

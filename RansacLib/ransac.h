@@ -113,6 +113,26 @@ class RansacBase {
   }
 };
 
+// SFINAE check for the existence in S of a method void EvaluateModelOnAllPoints(const M&, std::vector<double>&) const;
+// works with C++03 compilers, see https://stackoverflow.com/a/264088/12093812
+template<typename M, typename S>
+struct HasEvalOnAllPtsMethod {
+  typedef char yes[1];
+  typedef char no [2];
+  template <typename U, U> struct type_check;
+  template <typename _1> static yes &chk(type_check<void (S::*)(const M&, std::vector<double>&) const, &_1::EvaluateModelOnAllPoints > *);
+  template <typename   > static no  &chk(...);
+  static bool const value = sizeof(chk<S>(0)) == sizeof(yes);
+};
+
+template<bool C, typename T = void>
+struct enable_if {
+  typedef T type;
+};
+
+template<typename T>
+struct enable_if<false, T> {};
+
 // Implements LO-RANSAC with MSAC (top-hat) scoring, based on the description
 // provided in [Lebeda, Matas, Chum, Fixing the Locally Optimized RANSAC, BMVC
 // 2012]. Iteratively re-weighted least-squares optimization is optional.
@@ -292,26 +312,79 @@ class LocallyOptimizedMSAC : public RansacBase {
     }
   }
 
-  void ScoreModel(const Solver& solver, const Model& model,
-                  const double squared_inlier_threshold, double* score) const {
-    const int kNumData = solver.num_data();
-    *score = 0.0;
-    for (int i = 0; i < kNumData; ++i) {
-      double squared_error = solver.EvaluateModelOnPoint(model, i);
-      *score += ComputeScore(squared_error, squared_inlier_threshold);
-    }
-  }
-
   // MSAC (top-hat) scoring function.
   inline double ComputeScore(const double squared_error,
                              const double squared_error_threshold) const {
     return std::min(squared_error, squared_error_threshold);
   }
 
-  int GetInliers(const Solver& solver, const Model& model,
+  // SFINAE is used next to select variants of ScoreModel() & GetInliers() depending on the existence of S::EvaluateModelOnAllPoints()
+  template<class M, class S>
+  typename enable_if<HasEvalOnAllPtsMethod<M, S>::value, void>::type
+  ScoreModel(const S& solver, const M& model,
+            const double squared_inlier_threshold, double* scorep) const {
+    const int kNumData = solver.num_data();
+    std::vector<double> sq_errors;
+    sq_errors.reserve(kNumData);
+    solver.EvaluateModelOnAllPoints(model, sq_errors); // score all points
+    double score = 0.0;
+    for (int i = 0; i < kNumData; ++i) {
+      score += ComputeScore(sq_errors[i], squared_inlier_threshold);
+    }
+    *scorep = score;
+  }
+
+  template<class M, class S>
+  typename enable_if<!HasEvalOnAllPtsMethod<M, S>::value, void>::type
+  ScoreModel(const S& solver, const M& model,
+            const double squared_inlier_threshold, double* scorep) const {
+    const int kNumData = solver.num_data();
+    double score = 0.0;
+    // score point after point
+    for (int i = 0; i < kNumData; ++i) {
+      double squared_error = solver.EvaluateModelOnPoint(model, i);
+      score += ComputeScore(squared_error, squared_inlier_threshold);
+    }
+    *scorep = score;
+  }
+
+  template<class M, class S>
+  typename enable_if<HasEvalOnAllPtsMethod<M, S>::value, int>::type
+  GetInliers(const S& solver, const M& model,
                  const double squared_inlier_threshold,
                  std::vector<int>* inliers) const {
     const int kNumData = solver.num_data();
+    std::vector<double> sq_errors;
+    sq_errors.reserve(kNumData);
+    solver.EvaluateModelOnAllPoints(model, sq_errors); // score all points
+    if (inliers == nullptr) {
+      int num_inliers = 0;
+      for (int i = 0; i < kNumData; ++i) {
+        if (sq_errors[i] < squared_inlier_threshold) {
+          ++num_inliers;
+        }
+      }
+      return num_inliers;
+    } else {
+      inliers->clear();
+      int num_inliers = 0;
+      for (int i = 0; i < kNumData; ++i) {
+        if (sq_errors[i] < squared_inlier_threshold) {
+          ++num_inliers;
+          inliers->push_back(i);
+        }
+      }
+      return num_inliers;
+    }
+  }
+
+  template<class M, class S>
+  typename enable_if<!HasEvalOnAllPtsMethod<M, S>::value, int>::type
+  GetInliers(const S& solver, const M& model,
+                 const double squared_inlier_threshold,
+                 std::vector<int>* inliers) const {
+    const int kNumData = solver.num_data();
+    // score point after point
     if (inliers == nullptr) {
       int num_inliers = 0;
       for (int i = 0; i < kNumData; ++i) {
@@ -334,6 +407,7 @@ class LocallyOptimizedMSAC : public RansacBase {
       return num_inliers;
     }
   }
+
 
   // See algorithms 2 and 3 in Lebeda et al.
   // The input model is overwritten with the refined model if the latter is

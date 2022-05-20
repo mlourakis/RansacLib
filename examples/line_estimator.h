@@ -66,6 +66,9 @@ class LineEstimator {
   // Evaluates the line on the i-th data point.
   double EvaluateModelOnPoint(const Eigen::Vector3d& line, int i) const;
 
+  // Evaluates the line on all data points.
+  void EvaluateModelOnAllPoints(const Eigen::Vector3d& line, std::vector<double>& squared_errors) const;
+
   // Linear least squares solver. Calls NonMinimalSolver.
   inline void LeastSquares(const std::vector<int>& sample,
                            Eigen::Vector3d* line) const {
