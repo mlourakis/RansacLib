@@ -271,4 +271,4 @@ When contributing, please adhere to [Google's C++ Style Guide](https://google.gi
 ## List of Projects using RansacLib
 * Active Search v1.1 uses RansacLib instead of its original RANSAC implementation. Code for Active Search will become available [here](https://github.com/tsattler/vps).
 * [radialpose](https://github.com/vlarsson/radialpose) is an implementation of minimal solvers for absolute camera pose estimation for images with radial distortion.
-* [SQPnP](https://github.com/terzakig/sqpnp/tree/master/examples/robust) is a fast, non-minimal PnP solver.
+* [SQPnP](https://github.com/terzakig/sqpnp/tree/master/examples/robust) is a fast, non-minimal PnP solver. RansacLib is used to demonstrate the solver in a robust setting.

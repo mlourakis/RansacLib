@@ -294,6 +294,8 @@ class LocallyOptimizedMSAC : public RansacBase {
     return stats.best_num_inliers;
   }
 
+  bool HasEvaluateModelOnAllPoints() const { return HasEvalOnAllPtsMethod<Model, Solver>::value; }
+
  protected:
   void GetBestEstimatedModelId(const Solver& solver, const ModelVector& models,
                                const int num_models,
